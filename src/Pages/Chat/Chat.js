@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+
 export default function Chat(props) {
     const { socket } = props
 
@@ -9,7 +10,8 @@ export default function Chat(props) {
     const [currentMessage, setCurrentMessage] = useState("");
     const [messageList, setMessageList] = useState([]);
     const [needHelp, setNeedHelp] = useState(false)
-    const [suggestion, setSuggestion] = useState("");
+    const [suggestion, setSuggestion] = useState([]);
+    const [suggestionText, setSuggestionText] = useState([]);
 
     const navigate = useNavigate()
 
@@ -36,32 +38,119 @@ export default function Chat(props) {
     }
 
     const getSuggestion = async () => {
-        await axios({
-            url: "http://www.randomnumberapi.com/api/v1.0/randomnumber",
-            method: "GET",
-            // data: context
-        })
-            .then(async (response) => {
-                console.log(response.data[0])
-                setSuggestion(response.data[0])
+        const context = getContext()
+
+        var myHeaders = new Headers();
+        myHeaders.append("Content-Type", "application/json");
+
+        var raw = JSON.stringify({
+            "seeker": context.menteePreviousMessage,
+            "supporter": context.currentMessage
+        });
+
+        console.log(raw)
+
+        var requestOptions = {
+            method: 'POST',
+            headers: myHeaders,
+            body: raw,
+            redirect: 'follow'
+        };
+
+        await fetch("http://54.255.161.39:8080/get_suggestion", requestOptions)
+            .then(response => response.text())
+            .then((result) => {
+                let component = []
+                const operations = JSON.parse(result).operations
+                console.log(operations);
+                let suggestionText = []
+                for (let i = 0; i < operations.length; i++) {
+                    const operation = operations[i]
+                    switch (operation.operation) {
+                        case "<INSERT>": {
+                            suggestionText.push("");
+                            component.push(
+                                <span key={i}>
+                                    <span onClick={() => {
+                                        suggestionText[i] = operation.sentence
+                                        component[i] = (<span style={{ color: "black" }} key={i}>{operation.sentence} </span>)
+                                        setSuggestionText([...suggestionText])
+                                        setSuggestion([...component])
+                                    }}
+                                    style={{
+                                        border: "1px solid green",
+                                        display: "inline",
+                                        placeItems: "center",
+                                        cursor: "pointer",
+                                        height: "100%",
+                                        outline: "none",
+                                        fontSize: "20px",
+                                        padding: "5px 10px",
+                                        borderRadius: "10px",
+                                        backgroundColor: "green",
+                                        color: "white"
+                                    }}>Add</span>
+                                    <span style={{ color: "green" }} >{operation.sentence} </span>
+                                </span>
+                            )
+                            break;
+                        }
+                        case "<NOOP>": {
+                            suggestionText.push(operation.sentence);
+                            component.push(<span style={{ color: "black" }} key={i}>{operation.sentence} </span>)
+                            break;
+                        }
+                        case "<REPLACE>": {
+                            suggestionText.push(operation.old_sentence);
+                            component.push(
+                                <span key={i}>
+                                    <span onClick={() => {
+                                        suggestionText[i] = operation.sentence
+                                        component[i] = (<span style={{ color: "black" }} key={i}>{operation.sentence} </span>)
+                                        setSuggestionText([...suggestionText])
+                                        setSuggestion([...component])
+                                    }}
+                                        style={{
+                                            border: "1px solid red",
+                                            display: "inline",
+                                            placeItems: "center",
+                                            cursor: "pointer",
+                                            height: "100%",
+                                            outline: "none",
+                                            fontSize: "20px",
+                                            padding: "5px 10px",
+                                            borderRadius: "10px",
+                                            backgroundColor: "red",
+                                            color: "white"
+                                        }}>Delete</span><span style={{ color: "black" }}><s>{operation.old_sentence} </s></span> <span style={{ color: "green" }}>{operation.sentence} </span>
+                                </span>
+                            )
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+                setSuggestionText([...suggestionText])
+                setSuggestion([...component])
             })
+            .catch(error => console.log('error', error));
+
     }
 
     const checkAndSendMessage = async () => {
         if (currentMessage !== "") {
             if (username === "Mentor") {
-                const context = getContext()
-                console.log(context)
                 await axios({
                     url: "http://www.randomnumberapi.com/api/v1.0/randomnumber",
                     method: "GET",
                     // data: context
                 })
                     .then(async (response) => {
-                        console.log(response.data[0])
-                        if (response.data[0] > 50) {
+                        if (100 > 50) {
                             alert("Your message may be harmful to the mentee")
                             setNeedHelp(true)
+                            setSuggestion([])
                             return
                         } else {
                             sendMessage()
@@ -125,17 +214,37 @@ export default function Chat(props) {
                 </div>
             </div>
             <div>
-                <div onClick={ async () => {
+                <div onClick={async () => {
                     await getSuggestion()
                     setNeedHelp(false)
-                }} style={{width: "100%"}}>
-                    <button style={{display: `${needHelp ? "inline": "none"}`, margin: "10px 0px 10px 30px", padding: "10px 20px", borderRadius: "10px", backgroundColor: "transparent", fontSize: "16px", cursor: "pointer"}}>Would you like to have some suggestions?</button>
+                }} style={{ width: "100%" }}>
+                    <button style={{ display: `${needHelp ? "inline" : "none"}`, margin: "10px 0px 10px 30px", padding: "10px 20px", borderRadius: "10px", backgroundColor: "transparent", fontSize: "16px", cursor: "pointer" }}>Would you like to have some suggestions?</button>
                 </div>
-                <div onClick={() => {
-                    setCurrentMessage(suggestion)
-                    setSuggestion("")
-                }} style={{width: "100%"}}>
-                    <button style={{display: `${suggestion === "" ? "none": "inline"}`, margin: "10px 0px 10px 30px", padding: "10px 20px", borderRadius: "10px", backgroundColor: "transparent", fontSize: "16px", cursor: "pointer"}}>{suggestion}</button>
+                <div style={{ width: "100%" }}>
+                    <div style={{ justifyContent: "space-between", alignItems: "center", border: "1px solid black", display: `${suggestion.length === 0 ? "none" : "flex"}`, margin: "10px 30px 10px 30px", padding: "10px 20px", borderRadius: "10px", fontSize: "16px" }}>
+                        <p style={{ fontSize: "20px" }}>{suggestion}</p>
+                        <button onClick={() => {
+                            let text = ""
+                            for (let i = 0; i < suggestionText.length; i++) {
+                                text += (suggestionText[i] + " ")
+                            }
+                            setCurrentMessage(text)
+                            setSuggestionText([])
+                            setSuggestion([])
+                        }} style={{
+                            border: "1px solid transparent",
+                            display: "grid",
+                            placeItems: "center",
+                            cursor: "pointer",
+                            height: "100%",
+                            outline: "none",
+                            fontSize: "20px",
+                            padding: "10px 20px",
+                            borderRadius: "10px",
+                            backgroundColor: "#205bec",
+                            color: "white"
+                        }}>Apply changes</button>
+                    </div>
                 </div>
                 <div style={{ height: "40px", border: "1px solid #263238", display: "flex" }}>
                     <input
@@ -150,7 +259,7 @@ export default function Chat(props) {
                         }}
                         type="text"
                         value={currentMessage}
-                        placeholder="Hey..."
+                        placeholder="Input your message"
                         onChange={(event) => {
                             setCurrentMessage(event.target.value);
                         }}
