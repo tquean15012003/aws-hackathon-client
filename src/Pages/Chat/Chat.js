@@ -13,6 +13,8 @@ export default function Chat(props) {
     const [needHelp, setNeedHelp] = useState(false)
     const [suggestion, setSuggestion] = useState([]);
     const [suggestionText, setSuggestionText] = useState([]);
+    const [isLeft, setIsLeft] = useState(false);
+
     const navigate = useNavigate()
 
     const getContext = () => {
@@ -213,7 +215,7 @@ export default function Chat(props) {
                     .catch(error => console.log('error', error));
 
             } else {
-                sendMessage()
+                await sendMessage()
             }
         }
     };
@@ -234,30 +236,33 @@ export default function Chat(props) {
         setCurrentMessage("");
     }
 
-    const getFullContext = () => {
+    const getFullContext = (bool = true) => {
         let menteePreviousMessageList = []
         // let menteePreviousMessage = ""
         let mentorMessageList = []
         // let mentorMessage = ""
 
+
         for (let i = 0; i < messageList.length; i++) {
             if (messageList[i].author === "Mentor") {
-                mentorMessageList.push(messageList[i].message.replace("'", ""));
+                mentorMessageList.push(messageList[i].message.replaceAll("'", ""));
             } else {
-                menteePreviousMessageList.push(messageList[i].message.replace("'", ""));
+                menteePreviousMessageList.push(messageList[i].message.replaceAll("'", ""));
             }
         }
 
+        console.log(menteePreviousMessageList.slice(0, menteePreviousMessageList.length))
+
         const context = {
-            past_user_inputs: menteePreviousMessageList.slice(0, menteePreviousMessageList.length - 1),
+            past_user_inputs: bool ? menteePreviousMessageList.slice(0, menteePreviousMessageList.length - 1) : menteePreviousMessageList.slice(0, menteePreviousMessageList.length),
             generated_responses: mentorMessageList,
-            text: menteePreviousMessageList[menteePreviousMessageList.length - 1]
+            text: bool ? menteePreviousMessageList[menteePreviousMessageList.length - 1] : currentMessage
         }
         return context
     }
 
-    const getText = async () => {
-        const context = getFullContext()
+    const getText = async (bool = true) => {
+        const context = getFullContext(bool)
 
         var myHeaders = new Headers();
         myHeaders.append("Content-Type", "application/json");
@@ -280,13 +285,17 @@ export default function Chat(props) {
             redirect: 'follow'
         };
 
+        let text;
+
         await fetch("http://54.254.254.48:5000/generate", requestOptions)
             .then(response => response.text())
             .then((result) => {
                 console.log(JSON.parse(result).generated_text)
                 setCurrentMessage(JSON.parse(result).generated_text)
+                text = JSON.parse(result).generated_text
             })
             .catch(error => console.log('error', error));
+        return text
     }
 
     const renderMessage = () => {
@@ -317,6 +326,19 @@ export default function Chat(props) {
     //         console.log(data)
     //     });
     // }, [messageList.length, socket]);
+
+    useEffect(() => {
+        socket.on('leave', (data) => {
+            setIsLeft(true);
+        });
+    }, [isLeft, socket]);
+
+    useEffect(() => {
+        socket.on('join', (data) => {
+            setIsLeft(false);
+        });
+        console.log("Chay ne`")
+    }, [isLeft, socket]);
 
     return (
         <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", overflowX: "hidden", overflowY: "scroll" }}>
@@ -437,7 +459,29 @@ export default function Chat(props) {
                         outline: "none",
                         fontSize: "25px",
                         color: "green"
-                    }} onClick={checkAndSendMessage}>&#9658;</button>
+                    }} onClick={async () => {
+                        await checkAndSendMessage()
+                        console.log(isLeft)
+                        console.log(username)
+                        if (isLeft && username === "Mentee") {
+                            const text = await getText(false);
+                            console.log(text)
+                            const messageData = {
+                                room: room,
+                                author: "Mentor",
+                                message: text,
+                                time:
+                                    new Date(Date.now()).getHours() +
+                                    ":" +
+                                    new Date(Date.now()).getMinutes(),
+                            };
+
+                            await socket.emit("send_message", messageData);
+                            setMessageList((list) => [...list, messageData]);
+                            setCurrentMessage("");
+
+                        }
+                    }}>&#9658;</button>
                 </div>
             </div>
         </div>
