@@ -4,12 +4,12 @@
 }
 
 .popup {
-    min-width: 500px;
+    min-width: 400px;
     background-color: rgb(228, 228, 241);
     padding: 1px 20px;
     position: absolute;
     bottom: 100px;
-    left: -50px;
+    left: -150px;
     transition: all 0.25s ease;
     opacity: 0;
     display: none;

@@ -13,7 +13,6 @@ export default function Chat(props) {
     const [needHelp, setNeedHelp] = useState(false)
     const [suggestion, setSuggestion] = useState([]);
     const [suggestionText, setSuggestionText] = useState([]);
-
     const navigate = useNavigate()
 
     const getContext = () => {
@@ -80,7 +79,7 @@ export default function Chat(props) {
                 let suggestionText = []
                 for (let i = 0; i < operations.length; i++) {
                     const operation = operations[i]
-                    operation.explaination = (typeof operation.explaination === 'undefined') ?  operation.explanation : operation.explaination
+                    operation.explaination = (typeof operation.explaination === 'undefined') ? operation.explanation : operation.explaination
                     switch (operation.operation) {
                         case "<INSERT>": {
                             suggestionText.push("");
@@ -106,7 +105,7 @@ export default function Chat(props) {
                                             color: "white",
                                             marginRight: "5px"
                                         }}>Add</span>
-                                        <div style={{ position: "relative", display: "inline" }} className="container">
+                                    <div style={{ position: "relative", display: "inline" }} className="container">
                                         <p style={{ color: "green", display: "inline" }}>{operation.sentence} </p>
                                         <div className="popup" style={{ display: "inline" }}>
                                             <p>{operation.explaination}</p>
@@ -119,11 +118,11 @@ export default function Chat(props) {
                         case "<NOOP>": {
                             suggestionText.push(operation.sentence);
                             component.push(<div style={{ position: "relative", display: "inline" }} className="container">
-                            <p style={{ color: "black", display: "inline" }}>{operation.sentence} </p>
-                            <div className="popup" style={{ display: "inline" }}>
-                                <p>{operation.explaination}</p>
-                            </div>
-                        </div>)
+                                <p style={{ color: "black", display: "inline" }}>{operation.sentence} </p>
+                                <div className="popup" style={{ display: "inline" }}>
+                                    <p>{operation.explaination}</p>
+                                </div>
+                            </div>)
                             break;
                         }
                         case "<REPLACE>": {
@@ -235,6 +234,61 @@ export default function Chat(props) {
         setCurrentMessage("");
     }
 
+    const getFullContext = () => {
+        let menteePreviousMessageList = []
+        // let menteePreviousMessage = ""
+        let mentorMessageList = []
+        // let mentorMessage = ""
+
+        for (let i = 0; i < messageList.length; i++) {
+            if (messageList[i].author === "Mentor") {
+                mentorMessageList.push(messageList[i].message.replace("'", ""));
+            } else {
+                menteePreviousMessageList.push(messageList[i].message.replace("'", ""));
+            }
+        }
+
+        const context = {
+            past_user_inputs: menteePreviousMessageList.slice(0, menteePreviousMessageList.length - 1),
+            generated_responses: mentorMessageList,
+            text: menteePreviousMessageList[menteePreviousMessageList.length - 1]
+        }
+        return context
+    }
+
+    const getText = async () => {
+        const context = getFullContext()
+
+        var myHeaders = new Headers();
+        myHeaders.append("Content-Type", "application/json");
+        console.log(context.past_user_inputs)
+        console.log(context.generated_responses)
+        console.log(context.text)
+
+        var raw = JSON.stringify({
+            "inputs": {
+                "past_user_inputs": context.past_user_inputs,
+                "generated_responses": context.generated_responses,
+                "text": context.text
+            }
+        });
+
+        var requestOptions = {
+            method: 'POST',
+            headers: myHeaders,
+            body: raw,
+            redirect: 'follow'
+        };
+
+        await fetch("http://54.254.254.48:5000/generate", requestOptions)
+            .then(response => response.text())
+            .then((result) => {
+                console.log(JSON.parse(result).generated_text)
+                setCurrentMessage(JSON.parse(result).generated_text)
+            })
+            .catch(error => console.log('error', error));
+    }
+
     const renderMessage = () => {
         return messageList.map((messageContent, index) => {
             return (
@@ -254,6 +308,15 @@ export default function Chat(props) {
             setMessageList((list) => [...list, data]);
         });
     }, [socket]);
+
+    useEffect(() => {
+        socket.on('hello', (data) => {
+            if (messageList.length === 0) {
+                setMessageList(data)
+            }
+            console.log(data)
+        });
+    }, [messageList.length, socket]);
 
     return (
         <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", overflowX: "hidden", overflowY: "scroll" }}>
@@ -313,7 +376,7 @@ export default function Chat(props) {
                     <input
                         style={{
                             height: "100%",
-                            flex: "85%",
+                            flex: "80%",
                             border: "0",
                             padding: "0 0.7em",
                             fontSize: "1em",
@@ -335,7 +398,23 @@ export default function Chat(props) {
                         display: `${username === "Mentor" ? "grid" : "none"}`,
                         placeItems: "center",
                         cursor: "pointer",
-                        flex: "8%",
+                        flex: "10%",
+                        height: "100%",
+                        backgroundColor: "transparent",
+                        outline: "none",
+                        fontSize: "25px",
+                        color: "black",
+                        fontWeight: "bold",
+                        borderRight: "1px dotted black"
+                    }} onClick={async () => {
+                        await getText();
+                    }}>Get text</button>
+                    <button style={{
+                        border: "0",
+                        display: `${username === "Mentor" ? "grid" : "none"}`,
+                        placeItems: "center",
+                        cursor: "pointer",
+                        flex: "5%",
                         height: "100%",
                         backgroundColor: "transparent",
                         outline: "none",
@@ -352,7 +431,7 @@ export default function Chat(props) {
                         display: "grid",
                         placeItems: "center",
                         cursor: "pointer",
-                        flex: `${username === "Mentor" ? "7%" : "15%"}`,
+                        flex: `${username === "Mentor" ? "5%" : "20%"}`,
                         height: "100%",
                         backgroundColor: "transparent",
                         outline: "none",
