@@ -1,0 +1,17 @@
+.container:hover .popup {
+    opacity: 1;
+    display: block;
+}
+
+.popup {
+    min-width: 500px;
+    background-color: rgb(228, 228, 241);
+    padding: 1px 20px;
+    position: absolute;
+    bottom: 100px;
+    left: -50px;
+    transition: all 0.25s ease;
+    opacity: 0;
+    display: none;
+    border-radius: 10px;
+}

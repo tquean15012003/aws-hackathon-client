@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { SCORE_DOMAIN, SUGGESTION_DOMAIN } from '../../Redux/Constants';
+import "./Chat.css"
 
 export default function Chat(props) {
     const { socket } = props
@@ -79,6 +80,7 @@ export default function Chat(props) {
                 let suggestionText = []
                 for (let i = 0; i < operations.length; i++) {
                     const operation = operations[i]
+                    operation.explaination = (typeof operation.explaination === 'undefined') ?  operation.explanation : operation.explaination
                     switch (operation.operation) {
                         case "<INSERT>": {
                             suggestionText.push("");
@@ -101,20 +103,33 @@ export default function Chat(props) {
                                             padding: "5px 10px",
                                             borderRadius: "10px",
                                             backgroundColor: "green",
-                                            color: "white"
+                                            color: "white",
+                                            marginRight: "5px"
                                         }}>Add</span>
-                                    <span style={{ color: "green" }} >{operation.sentence} </span>
+                                        <div style={{ position: "relative", display: "inline" }} className="container">
+                                        <p style={{ color: "green", display: "inline" }}>{operation.sentence} </p>
+                                        <div className="popup" style={{ display: "inline" }}>
+                                            <p>{operation.explaination}</p>
+                                        </div>
+                                    </div>
                                 </span>
                             )
                             break;
                         }
                         case "<NOOP>": {
                             suggestionText.push(operation.sentence);
-                            component.push(<span style={{ color: "black" }} key={i}>{operation.sentence} </span>)
+                            component.push(<div style={{ position: "relative", display: "inline" }} className="container">
+                            <p style={{ color: "black", display: "inline" }}>{operation.sentence} </p>
+                            <div className="popup" style={{ display: "inline" }}>
+                                <p>{operation.explaination}</p>
+                            </div>
+                        </div>)
                             break;
                         }
                         case "<REPLACE>": {
+                            console.log(operation.explaination)
                             suggestionText.push(operation.old_sentence);
+
                             component.push(
                                 <span key={i}>
                                     <span onClick={() => {
@@ -134,8 +149,15 @@ export default function Chat(props) {
                                             padding: "5px 10px",
                                             borderRadius: "10px",
                                             backgroundColor: "red",
-                                            color: "white"
-                                        }}>Replace</span><span style={{ color: "black" }}><s>{operation.old_sentence} </s></span> <span style={{ color: "green" }}>{operation.sentence} </span>
+                                            color: "white",
+                                            marginRight: "5px"
+                                        }}>Replace</span><span style={{ color: "black" }}><s>{operation.old_sentence} </s></span>
+                                    <div style={{ position: "relative", display: "inline" }} className="container">
+                                        <p style={{ color: "green", display: "inline" }}>{operation.sentence} </p>
+                                        <div className="popup" style={{ display: "inline" }}>
+                                            <p>{operation.explaination}</p>
+                                        </div>
+                                    </div>
                                 </span>
                             )
 
@@ -310,7 +332,7 @@ export default function Chat(props) {
                     />
                     <button style={{
                         border: "0",
-                        display: `${username === "Mentor" ? "grid" : "none" }`,
+                        display: `${username === "Mentor" ? "grid" : "none"}`,
                         placeItems: "center",
                         cursor: "pointer",
                         flex: "8%",
