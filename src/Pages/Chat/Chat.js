@@ -309,14 +309,14 @@ export default function Chat(props) {
         });
     }, [socket]);
 
-    useEffect(() => {
-        socket.on('hello', (data) => {
-            if (messageList.length === 0) {
-                setMessageList(data)
-            }
-            console.log(data)
-        });
-    }, [messageList.length, socket]);
+    // useEffect(() => {
+    //     socket.on('hello', (data) => {
+    //         if (messageList.length === 0) {
+    //             setMessageList(data)
+    //         }
+    //         console.log(data)
+    //     });
+    // }, [messageList.length, socket]);
 
     return (
         <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", overflowX: "hidden", overflowY: "scroll" }}>
