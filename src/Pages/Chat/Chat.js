@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { SCORE_DOMAIN, SUGGESTION_DOMAIN } from '../../Redux/Constants';
 
 export default function Chat(props) {
     const { socket } = props
@@ -19,7 +19,16 @@ export default function Chat(props) {
         let menteePreviousMessageList = []
         let menteePreviousMessage = ""
 
+        let count = messageList.length - 1;
+
         for (let i = messageList.length - 1; i >= 0; i--) {
+            if (messageList[i].author !== "Mentor") {
+                break;
+            }
+            count--;
+        }
+
+        for (let i = count; i >= 0; i--) {
             if (messageList[i].author !== "Mentee") {
                 break;
             }
@@ -27,7 +36,7 @@ export default function Chat(props) {
         }
 
         for (let i = menteePreviousMessageList.length - 1; i >= 0; i--) {
-            menteePreviousMessage += (menteePreviousMessageList[i].message + ". ");
+            menteePreviousMessage += (menteePreviousMessageList[i].message + " ");
         }
 
         const context = {
@@ -57,12 +66,16 @@ export default function Chat(props) {
             redirect: 'follow'
         };
 
-        await fetch("http://54.255.161.39:8080/get_suggestion", requestOptions)
+        await fetch(SUGGESTION_DOMAIN, requestOptions)
             .then(response => response.text())
             .then((result) => {
                 let component = []
-                const operations = JSON.parse(result).operations
-                console.log(operations);
+                let operations = JSON.parse(result).operations
+                console.log(operations)
+                if (!Array.isArray(operations)) {
+                    operations = [operations]
+                }
+                console.log(operations)
                 let suggestionText = []
                 for (let i = 0; i < operations.length; i++) {
                     const operation = operations[i]
@@ -77,19 +90,19 @@ export default function Chat(props) {
                                         setSuggestionText([...suggestionText])
                                         setSuggestion([...component])
                                     }}
-                                    style={{
-                                        border: "1px solid green",
-                                        display: "inline",
-                                        placeItems: "center",
-                                        cursor: "pointer",
-                                        height: "100%",
-                                        outline: "none",
-                                        fontSize: "20px",
-                                        padding: "5px 10px",
-                                        borderRadius: "10px",
-                                        backgroundColor: "green",
-                                        color: "white"
-                                    }}>Add</span>
+                                        style={{
+                                            border: "1px solid green",
+                                            display: "inline",
+                                            placeItems: "center",
+                                            cursor: "pointer",
+                                            height: "100%",
+                                            outline: "none",
+                                            fontSize: "20px",
+                                            padding: "5px 10px",
+                                            borderRadius: "10px",
+                                            backgroundColor: "green",
+                                            color: "white"
+                                        }}>Add</span>
                                     <span style={{ color: "green" }} >{operation.sentence} </span>
                                 </span>
                             )
@@ -122,9 +135,10 @@ export default function Chat(props) {
                                             borderRadius: "10px",
                                             backgroundColor: "red",
                                             color: "white"
-                                        }}>Delete</span><span style={{ color: "black" }}><s>{operation.old_sentence} </s></span> <span style={{ color: "green" }}>{operation.sentence} </span>
+                                        }}>Replace</span><span style={{ color: "black" }}><s>{operation.old_sentence} </s></span> <span style={{ color: "green" }}>{operation.sentence} </span>
                                 </span>
                             )
+
                             break;
                         }
                         default:
@@ -141,21 +155,42 @@ export default function Chat(props) {
     const checkAndSendMessage = async () => {
         if (currentMessage !== "") {
             if (username === "Mentor") {
-                await axios({
-                    url: "http://www.randomnumberapi.com/api/v1.0/randomnumber",
-                    method: "GET",
-                    // data: context
-                })
-                    .then(async (response) => {
-                        if (100 > 50) {
+                const context = getContext()
+
+                var myHeaders = new Headers();
+                myHeaders.append("Content-Type", "application/json");
+
+                var raw = JSON.stringify({
+                    "seeker": context.menteePreviousMessage,
+                    "supporter": context.currentMessage
+                });
+
+                var requestOptions = {
+                    method: 'POST',
+                    headers: myHeaders,
+                    body: raw,
+                    redirect: 'follow'
+                };
+
+                console.log(raw)
+
+                fetch(SCORE_DOMAIN, requestOptions)
+                    .then(response => response.text())
+                    .then((result) => {
+                        let score = JSON.parse(result).score
+                        console.log(score)
+                        if (score < 1) {
                             alert("Your message may be harmful to the mentee")
                             setNeedHelp(true)
                             setSuggestion([])
                             return
                         } else {
+                            setNeedHelp(false)
                             sendMessage()
                         }
                     })
+                    .catch(error => console.log('error', error));
+
             } else {
                 sendMessage()
             }
@@ -199,7 +234,7 @@ export default function Chat(props) {
     }, [socket]);
 
     return (
-        <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", overflowX: "hidden", overflowY: "auto" }}>
+        <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", overflowX: "hidden", overflowY: "scroll" }}>
             <div>
                 <div style={{ height: "100px", background: "#263238", display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0" }}>
                     <p style={{ fontSize: "32px", color: "white", marginLeft: "10px", fontWeight: "bold" }}>Se<span style={{ color: "#205bec" }}>same</span>  Live chat</p>
@@ -222,7 +257,13 @@ export default function Chat(props) {
                 </div>
                 <div style={{ width: "100%" }}>
                     <div style={{ justifyContent: "space-between", alignItems: "center", border: "1px solid black", display: `${suggestion.length === 0 ? "none" : "flex"}`, margin: "10px 30px 10px 30px", padding: "10px 20px", borderRadius: "10px", fontSize: "16px" }}>
-                        <p style={{ fontSize: "20px" }}>{suggestion}</p>
+                        <p style={{ fontSize: "20px" }}>
+                            <i onClick={async () => {
+                                await getSuggestion()
+                                setNeedHelp(false)
+                            }} style={{ marginRight: "10px", cursor: "pointer" }} className="fa fa-sync"></i>
+                            {suggestion}
+                        </p>
                         <button onClick={() => {
                             let text = ""
                             for (let i = 0; i < suggestionText.length; i++) {
@@ -269,10 +310,27 @@ export default function Chat(props) {
                     />
                     <button style={{
                         border: "0",
+                        display: `${username === "Mentor" ? "grid" : "none" }`,
+                        placeItems: "center",
+                        cursor: "pointer",
+                        flex: "8%",
+                        height: "100%",
+                        backgroundColor: "transparent",
+                        outline: "none",
+                        fontSize: "25px",
+                        color: "black",
+                        fontWeight: "bold",
+                        borderRight: "1px dotted black"
+                    }} onClick={async () => {
+                        await getSuggestion()
+                        setNeedHelp(false)
+                    }}>Check</button>
+                    <button style={{
+                        border: "0",
                         display: "grid",
                         placeItems: "center",
                         cursor: "pointer",
-                        flex: "15%",
+                        flex: `${username === "Mentor" ? "7%" : "15%"}`,
                         height: "100%",
                         backgroundColor: "transparent",
                         outline: "none",
