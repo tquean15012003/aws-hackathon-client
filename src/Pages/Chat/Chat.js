@@ -318,15 +318,6 @@ export default function Chat(props) {
         });
     }, [socket]);
 
-    // useEffect(() => {
-    //     socket.on('hello', (data) => {
-    //         if (messageList.length === 0) {
-    //             setMessageList(data)
-    //         }
-    //         console.log(data)
-    //     });
-    // }, [messageList.length, socket]);
-
     useEffect(() => {
         socket.on('leave', (data) => {
             setIsLeft(true);
@@ -334,11 +325,21 @@ export default function Chat(props) {
     }, [isLeft, socket]);
 
     useEffect(() => {
-        socket.on('join', (data) => {
+        socket.on('join_after_left', () => {
             setIsLeft(false);
+            console.log("I join the room again")
         });
-        console.log("Chay ne`")
     }, [isLeft, socket]);
+
+    useEffect(() => {
+        socket.on('join', (chatHis) => {
+            console.log(chatHis)
+            messageList.current = chatHis;
+            setMessageList(chatHis);
+            console.log("Chay ne`")
+        });
+        return () => socket.off('join');
+    }, [messageList, socket]);
 
     return (
         <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", overflowX: "hidden", overflowY: "scroll" }}>
